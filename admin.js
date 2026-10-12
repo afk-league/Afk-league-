@@ -82,21 +82,70 @@ function wireTeams(){
   db.collection('leagueTeams').orderBy('name').onSnapshot(snap => {
     if (snap.empty) { list.innerHTML = '<div class="empty">No players in the league yet.</div>'; return; }
     list.innerHTML = '';
-    snap.forEach(doc => {
-      const t = doc.data();
-      const row = document.createElement('div');
-      row.className = 'admin-list-item';
-      row.innerHTML = `
-        <span>${escapeHtml(t.name)}</span>
-        <span class="tag">${t.points||0} pts</span>
-        <button class="btn danger" data-id="${doc.id}">Remove</button>
-      `;
-      row.querySelector('button').addEventListener('click', async () => {
-        if (confirm(`Remove ${t.name} from the league?`)) await db.collection('leagueTeams').doc(doc.id).delete();
-      });
-      list.appendChild(row);
-    });
+    snap.forEach(doc => list.appendChild(teamRow(doc.id, doc.data())));
   });
+}
+
+function teamRow(id, t){
+  const row = document.createElement('div');
+  row.className = 'admin-list-item';
+  row.innerHTML = `
+    <span data-role="display" style="flex:1">${escapeHtml(t.name)}</span>
+    <input data-role="input" value="${escapeHtml(t.name)}" style="display:none; flex:1">
+    <span class="tag" data-role="pts">${t.points||0} pts</span>
+    <button class="btn secondary" data-role="edit">Edit</button>
+    <button class="btn danger" data-role="remove">Remove</button>
+  `;
+
+  const displayEl = row.querySelector('[data-role="display"]');
+  const inputEl = row.querySelector('[data-role="input"]');
+  const editBtn = row.querySelector('[data-role="edit"]');
+
+  editBtn.addEventListener('click', async () => {
+    if (editBtn.textContent === 'Edit') {
+      displayEl.style.display = 'none';
+      inputEl.style.display = 'block';
+      inputEl.focus();
+      editBtn.textContent = 'Save';
+    } else {
+      const newName = inputEl.value.trim();
+      const oldName = t.name;
+      if (!newName) { alert('Name cannot be empty.'); return; }
+      if (newName !== oldName) {
+        editBtn.disabled = true;
+        await renameTeam(id, oldName, newName);
+        editBtn.disabled = false;
+      }
+      displayEl.textContent = newName;
+      displayEl.style.display = 'inline';
+      inputEl.style.display = 'none';
+      editBtn.textContent = 'Edit';
+    }
+  });
+
+  row.querySelector('[data-role="remove"]').addEventListener('click', async () => {
+    if (confirm(`Remove ${t.name} from the league?`)) await db.collection('leagueTeams').doc(id).delete();
+  });
+
+  return row;
+}
+
+// Renames a league team everywhere it's referenced: the team doc itself,
+// plus every leagueFixtures doc that has it as home or away, so past and
+// future fixtures keep showing the right name instead of breaking.
+async function renameTeam(teamId, oldName, newName){
+  await db.collection('leagueTeams').doc(teamId).update({ name: newName });
+
+  const [homeSnap, awaySnap] = await Promise.all([
+    db.collection('leagueFixtures').where('home', '==', oldName).get(),
+    db.collection('leagueFixtures').where('away', '==', oldName).get()
+  ]);
+  if (homeSnap.empty && awaySnap.empty) return;
+
+  const batch = db.batch();
+  homeSnap.forEach(doc => batch.update(doc.ref, { home: newName }));
+  awaySnap.forEach(doc => batch.update(doc.ref, { away: newName }));
+  await batch.commit();
 }
 
 async function teamOptions(){
@@ -228,17 +277,69 @@ function wireTournamentPlayers(){
   db.collection('tournamentPlayers').orderBy('seed').onSnapshot(snap => {
     if (snap.empty) { list.innerHTML = '<div class="empty">No entrants yet.</div>'; return; }
     list.innerHTML = '';
-    snap.forEach(doc => {
-      const p = doc.data();
-      const row = document.createElement('div');
-      row.className = 'admin-list-item';
-      row.innerHTML = `<span>#${p.seed} ${escapeHtml(p.name)}</span><button class="btn danger">Remove</button>`;
-      row.querySelector('button').addEventListener('click', async () => {
-        if (confirm(`Remove ${p.name}?`)) await db.collection('tournamentPlayers').doc(doc.id).delete();
-      });
-      list.appendChild(row);
-    });
+    snap.forEach(doc => list.appendChild(playerRow(doc.id, doc.data())));
   });
+}
+
+function playerRow(id, p){
+  const row = document.createElement('div');
+  row.className = 'admin-list-item';
+  row.innerHTML = `
+    <span data-role="display" style="flex:1">#${p.seed} ${escapeHtml(p.name)}</span>
+    <input data-role="input" value="${escapeHtml(p.name)}" style="display:none; flex:1">
+    <button class="btn secondary" data-role="edit">Edit</button>
+    <button class="btn danger" data-role="remove">Remove</button>
+  `;
+
+  const displayEl = row.querySelector('[data-role="display"]');
+  const inputEl = row.querySelector('[data-role="input"]');
+  const editBtn = row.querySelector('[data-role="edit"]');
+
+  editBtn.addEventListener('click', async () => {
+    if (editBtn.textContent === 'Edit') {
+      displayEl.style.display = 'none';
+      inputEl.style.display = 'block';
+      inputEl.focus();
+      editBtn.textContent = 'Save';
+    } else {
+      const newName = inputEl.value.trim();
+      const oldName = p.name;
+      if (!newName) { alert('Name cannot be empty.'); return; }
+      if (newName !== oldName) {
+        editBtn.disabled = true;
+        await renamePlayer(id, oldName, newName);
+        editBtn.disabled = false;
+      }
+      displayEl.textContent = `#${p.seed} ${newName}`;
+      displayEl.style.display = 'inline';
+      inputEl.style.display = 'none';
+      editBtn.textContent = 'Edit';
+    }
+  });
+
+  row.querySelector('[data-role="remove"]').addEventListener('click', async () => {
+    if (confirm(`Remove ${p.name}?`)) await db.collection('tournamentPlayers').doc(id).delete();
+  });
+
+  return row;
+}
+
+// Renames a tournament entrant everywhere it's referenced: the player doc
+// itself, plus every tournamentMatches doc that has them as player1 or
+// player2, so the bracket keeps showing the right name.
+async function renamePlayer(playerId, oldName, newName){
+  await db.collection('tournamentPlayers').doc(playerId).update({ name: newName });
+
+  const [p1Snap, p2Snap] = await Promise.all([
+    db.collection('tournamentMatches').where('player1', '==', oldName).get(),
+    db.collection('tournamentMatches').where('player2', '==', oldName).get()
+  ]);
+  if (p1Snap.empty && p2Snap.empty) return;
+
+  const batch = db.batch();
+  p1Snap.forEach(doc => batch.update(doc.ref, { player1: newName }));
+  p2Snap.forEach(doc => batch.update(doc.ref, { player2: newName }));
+  await batch.commit();
 }
 
 // ---------- TOURNAMENT MATCHES ----------
@@ -338,4 +439,5 @@ function wireChampions(){
       list.appendChild(row);
     });
   });
-}
+        }
+    
