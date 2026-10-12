@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFK League</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --bg:        #12141c;
+  --bg-raised: #191c26;
+  --bg-card:   #1f2330;
+  --line:      #2b2f3d;
+  --text:      #eceef3;
+  --text-dim:  #9ba0b3;
+  --gold:      #e8b64c;
+  --teal:      #3ea8a0;
+  --red:       #d9584f;
+  --radius:    10px;
+  --radius-sm: 6px;
+}
+*{ box-sizing:border-box; }
+html{ scroll-behavior:smooth; }
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:'Inter',system-ui,sans-serif; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.score,.brand{ font-family:'Oswald',sans-serif; font-weight:600; letter-spacing:.01em; }
+a{ color:inherit; text-decoration:none; }
+button, input, select{ font-family:inherit; }
+:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+.wrap{ max-width:760px; margin:0 auto; padding:0 16px 64px; }
+
+header.top{ background:var(--bg-raised); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; }
+.top-inner{ max-width:760px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:14px 16px; }
+.brand{ font-size:20px; color:var(--text); display:flex; align-items:baseline; gap:6px; }
+.brand span{ color:var(--gold); }
+
+nav.tabs{ display:flex; gap:4px; max-width:760px; margin:0 auto; padding:0 12px 12px; overflow-x:auto; }
+nav.tabs a{ flex:none; font-size:14px; font-weight:600; color:var(--text-dim); padding:8px 14px; border-radius:999px; border:1px solid var(--line); white-space:nowrap; cursor:pointer; }
+nav.tabs a.active{ background:var(--gold); color:#1a1400; border-color:var(--gold); }
+
+section.block{ margin-top:28px; }
+section.block h2{ font-size:15px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.08em; margin:0 0 12px; font-weight:600; }
+
+.card{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:10px; }
+
+.fixture{ display:grid; grid-template-columns:1fr auto; align-items:center; gap:10px; }
+.fixture .teams{ display:flex; flex-direction:column; gap:8px; }
+.team-row{ display:flex; align-items:center; gap:10px; }
+.badge{ width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#0e0f14; background:var(--gold); flex:none; }
+.badge.alt{ background:var(--teal); color:#06201d; }
+.team-name{ font-size:15px; font-weight:500; }
+.team-name.winner{ color:var(--gold); font-weight:700; }
+.fixture .score-col{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; }
+.score{ font-size:18px; min-width:20px; text-align:right; }
+.status{ font-size:12px; color:var(--text-dim); text-align:right; }
+.status.live{ color:var(--red); font-weight:700; }
+.status.live::before{ content:''; display:inline-block; width:6px; height:6px; background:var(--red); border-radius:50%; margin-right:5px; }
+.meta-row{ display:flex; justify-content:space-between; font-size:12px; color:var(--text-dim); margin-bottom:10px; }
+
+table.standings{ width:100%; border-collapse:collapse; font-size:13px; }
+table.standings th{ text-align:left; color:var(--text-dim); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:0 6px 8px; }
+table.standings th.num, table.standings td.num{ text-align:center; }
+table.standings td{ padding:8px 6px; border-top:1px solid var(--line); }
+table.standings tr td:first-child, table.standings tr th:first-child{ padding-left:12px; }
+.pos{ color:var(--text-dim); width:18px; display:inline-block; }
+table.standings td.pts{ font-weight:700; color:var(--gold); }
+.team-cell{ display:flex; align-items:center; gap:8px; }
+
+.bracket{ display:flex; flex-direction:column; gap:22px; }
+.round-label{ font-size:12px; color:var(--gold); text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; font-weight:600; }
+.match-card{ display:flex; flex-direction:column; gap:6px; }
+.match-card .team-row{ justify-content:space-between; }
+.match-card .team-row .score{ font-size:16px; }
+
+.champion-row{ display:flex; align-items:center; gap:14px; padding:14px 0; border-top:1px solid var(--line); }
+.champion-row:first-child{ border-top:none; }
+.trophy{ width:36px; height:36px; border-radius:50%; background:rgba(232,182,76,.12); color:var(--gold); display:flex; align-items:center; justify-content:center; font-size:17px; flex:none; }
+.champion-info{ flex:1; }
+.champion-season{ font-size:12px; color:var(--text-dim); }
+.champion-name{ font-size:16px; font-weight:600; }
+.champion-tag{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--teal); font-weight:600; }
+
+.empty{ padding:28px 16px; text-align:center; color:var(--text-dim); border:1px dashed var(--line); border-radius:var(--radius); font-size:14px; }
+
+.hero{ padding:28px 0 8px; }
+.hero h1{ font-size:30px; margin:0 0 6px; color:var(--text); }
+.hero p{ margin:0; color:var(--text-dim); font-size:14px; }
+
+.quick-links{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:20px; }
+.quick-links a{ background:var(--bg-card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 10px; text-align:center; cursor:pointer; }
+.quick-links a strong{ display:block; font-size:13px; margin-top:6px; }
+.quick-links a .icon{ font-size:20px; }
+
+.form-row{ margin-bottom:12px; display:flex; flex-direction:column; gap:5px; }
+.form-row label{ font-size:12px; color:var(--text-dim); }
+.form-row input, .form-row select{ background:var(--bg-raised); border:1px solid var(--line); color:var(--text); border-radius:var(--radius-sm); padding:10px 12px; font-size:14px; }
+.form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.btn{ display:inline-block; background:var(--gold); color:#1a1400; border:none; border-radius:999px; padding:10px 20px; font-weight:700; font-size:14px; cursor:pointer; }
+.btn.secondary{ background:transparent; border:1px solid var(--line); color:var(--text); }
+.btn.danger{ background:var(--red); color:#2a0906; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.row-actions{ display:flex; gap:8px; margin-top:8px; }
+.admin-list-item{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-top:1px solid var(--line); gap:10px; }
+.admin-list-item:first-child{ border-top:none; }
+.tag{ font-size:11px; padding:3px 8px; border-radius:999px; background:var(--bg-raised); border:1px solid var(--line); color:var(--text-dim); }
+.small{ font-size:12px; color:var(--text-dim); }
+
+.admin-tab-row{ display:flex; gap:8px; overflow-x:auto; margin:20px 0 16px; }
+.admin-tab{ flex:none; padding:9px 14px; border-radius:999px; border:1px solid var(--line); background:var(--bg-card); color:var(--text-dim); font-weight:600; font-size:13px; cursor:pointer; }
+.admin-tab.active{ background:var(--gold); color:#1a1400; border-color:var(--gold); }
+.view-toggle{ display:flex; gap:8px; margin:20px 0 16px; }
+.view-toggle button{ flex:1; padding:9px; border-radius:999px; border:1px solid var(--line); background:var(--bg-card); color:var(--text-dim); font-weight:600; font-size:13px; cursor:pointer; }
+.view-toggle button.active{ background:var(--gold); color:#1a1400; border-color:var(--gold); }
+.login-box{ max-width:340px; margin:60px auto 0; }
+
+@media (min-width:640px){ .hero h1{ font-size:36px; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <a href="#/" class="brand">AFK <span>LEAGUE</span></a>
+  </div>
+  <nav class="tabs" id="main-nav">
+    <a data-route="home">Home</a>
+    <a data-route="league">League</a>
+    <a data-route="tournament">Tournament</a>
+    <a data-route="champions">Roll of Champions</a>
+    <a data-route="admin">Admin</a>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= HOME ================= -->
+  <div class="page" id="page-home">
+    <div class="hero">
+      <h1>AFK League</h1>
+      <p>Live scores, fixtures and results across the AFK efootball scene.</p>
+    </div>
+    <div class="quick-links">
+      <a data-route="league"><span class="icon">📋</span><strong>League</strong></a>
+      <a data-route="tournament"><span class="icon">🏆</span><strong>Tournament</strong></a>
+      <a data-route="champions"><span class="icon">👑</span><strong>Champions</strong></a>
+    </div>
+    <section class="block">
+      <h2>Matches</h2>
+      <div id="feed"></div>
+    </section>
+  </div>
+
+  <!-- ================= LEAGUE ================= -->
+  <div class="page" id="page-league" style="display:none">
+    <div class="hero">
+      <h1>AFK League</h1>
+      <p>Up to 20 players · full round robin · scores updated by admins.</p>
+    </div>
+    <div class="view-toggle">
+      <button data-view="fixtures" class="active">Fixtures</button>
+      <button data-view="table">Table</button>
+    </div>
+    <div id="view-fixtures">
+      <div id="fixtures"></div>
+    </div>
+    <div id="view-table" style="display:none">
+      <table class="standings">
+        <thead>
+          <tr><th></th><th>Player</th><th class="num">P</th><th class="num">W</th><th class="num">D</th><th class="num">L</th><th class="num">GD</th><th class="num">Pts</th></tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= TOURNAMENT ================= -->
+  <div class="page" id="page-tournament" style="display:none">
+    <div class="hero">
+      <h1>AFK Tournament</h1>
+      <p>8 players · single elimination · quarter-final through to the final.</p>
+    </div>
+    <div id="bracket" class="bracket"></div>
+  </div>
+
+  <!-- ================= CHAMPIONS ================= -->
+  <div class="page" id="page-champions" style="display:none">
+    <div class="hero">
+      <h1>Roll of Champions</h1>
+      <p>Every AFK League and AFK Tournament winner, season by season.</p>
+    </div>
+    <div id="champions-list"></div>
+  </div>
+
+  <!-- ================= ADMIN ================= -->
+  <div class="page" id="page-admin" style="display:none">
+
+    <div id="login-view" class="login-box" style="display:none">
+      <div class="hero" style="padding-top:0">
+        <h1>Admin sign in</h1>
+        <p>Restricted to the 3 AFK League admins.</p>
+      </div>
+      <form id="login-form" class="card">
+        <div class="form-row"><label>Email</label><input id="login-email" type="email" required autocomplete="username"></div>
+        <div class="form-row"><label>Password</label><input id="login-password" type="password" required autocomplete="current-password"></div>
+        <p id="login-error" class="small" style="color:var(--red)"></p>
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+    </div>
+
+    <div id="denied-view" style="display:none">
+      <div class="hero" style="padding-top:0"><h1>Not an admin account</h1></div>
+      <div class="empty">This account isn't on the AFK League admin list. Sign in with one of the 3 approved admin emails.</div>
+      <div class="row-actions" style="margin-top:14px"><button class="btn secondary" id="logout-btn-2">Sign out</button></div>
+    </div>
+
+    <div id="dash-view" style="display:none">
+      <div class="hero" style="padding-top:0">
+        <h1>Admin dashboard</h1>
+        <p>Signed in as <span id="whoami"></span> · <a href="#" id="logout-btn" style="text-decoration:underline">Sign out</a></p>
+      </div>
+
+      <div class="admin-tab-row">
+        <button class="admin-tab active" data-tab="teams">League players</button>
+        <button class="admin-tab" data-tab="fixtures">League fixtures</button>
+        <button class="admin-tab" data-tab="tournament">Tournament</button>
+        <button class="admin-tab" data-tab="champions">Champions</button>
+      </div>
+
+      <div id="panel-teams">
+        <section class="block">
+          <h2>Add player</h2>
+          <form id="team-form" class="card">
+            <div class="form-row"><label>Player / team name</label><input id="team-name" required placeholder="e.g. Kelvin"></div>
+            <button class="btn" type="submit">Add to league</button>
+          </form>
+        </section>
+        <section class="block">
+          <h2>League players (max 20)</h2>
+          <div id="team-list"></div>
+        </section>
+      </div>
+
+      <div id="panel-fixtures" style="display:none">
+        <section class="block">
+          <h2>Add fixture</h2>
+          <form id="fixture-form" class="card">
+            <div class="form-grid">
+              <div class="form-row"><label>Home</label><select id="fixture-home"></select></div>
+              <div class="form-row"><label>Away</label><select id="fixture-away"></select></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row"><label>Matchday</label><input id="fixture-matchday" type="number" min="1" value="1"></div>
+              <div class="form-row"><label>Date & time</label><input id="fixture-date" type="datetime-local"></div>
+            </div>
+            <button class="btn" type="submit">Add fixture</button>
+          </form>
+        </section>
+        <section class="block">
+          <h2>Fixtures & results</h2>
+          <div id="fixture-list"></div>
+        </section>
+      </div>
+
+      <div id="panel-tournament" style="display:none">
+        <section class="block">
+          <h2>Add entrant</h2>
+          <form id="player-form" class="card">
+            <div class="form-row"><label>Player name</label><input id="player-name" required placeholder="e.g. Zee"></div>
+            <button class="btn" type="submit">Add entrant</button>
+          </form>
+          <div id="player-list" style="margin-top:10px"></div>
+        </section>
+        <section class="block">
+          <h2>Add / update match</h2>
+          <form id="match-form" class="card">
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Round</label>
+                <select id="match-round">
+                  <option>Quarter-Final</option>
+                  <option>Semi-Final</option>
+                  <option>Final</option>
+                </select>
+              </div>
+              <div class="form-row"><label>Order (bracket position)</label><input id="match-order" type="number" min="0" value="0"></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-row"><label>Player 1</label><select id="match-p1"></select></div>
+              <div class="form-row"><label>Player 2</label><select id="match-p2"></select></div>
+            </div>
+            <button class="btn" type="submit">Add match</button>
+          </form>
+        </section>
+        <section class="block">
+          <h2>Bracket matches</h2>
+          <div id="match-list"></div>
+        </section>
+      </div>
+
+      <div id="panel-champions" style="display:none">
+        <section class="block">
+          <h2>Add champion</h2>
+          <form id="champion-form" class="card">
+            <div class="form-grid">
+              <div class="form-row"><label>Season / date label</label><input id="champion-season" placeholder="e.g. 2026 Season 1" required></div>
+              <div class="form-row">
+                <label>Competition</label>
+                <select id="champion-competition">
+                  <option>AFK League</option>
+                  <option>AFK Tournament</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row"><label>Winner</label><input id="champion-winner" required placeholder="Player name"></div>
+            <button class="btn" type="submit">Add to roll of champions</button>
+          </form>
+        </section>
+        <section class="block">
+          <h2>Roll of champions</h2>
+          <div id="champion-admin-list"></div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+// =====================================================================
+// FIREBASE SETUP
+// =====================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDtzE03phFwrkkHJl_jU1bnOVmmRZo34sg",
+  authDomain: "afk-league.firebaseapp.com",
+  databaseURL: "https://afk-league-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "afk-league",
+  storageBucket: "afk-league.firebasestorage.app",
+  messagingSenderId: "656897329307",
+  appId: "1:656897329307:web:013160593258749ac49e3e",
+  measurementId: "G-JSH8N86Q8J"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// The only 3 accounts allowed to post/edit content.
+// Create these in Firebase Authentication (Email/Password) and mirror
+// this list in your Firestore security rules (see the comment at the
+// bottom of this file).
+const ADMIN_EMAILS = [
+  "admin1@afkleague.com",
+  "admin2@afkleague.com",
+  "admin3@afkleague.com"
+];
+function isAdminEmail(email){ return !!email && ADMIN_EMAILS.includes(email.toLowerCase()); }
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+function fmtDate(ts){
+  if(!ts) return '';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleDateString(undefined, { weekday:'short', day:'numeric', month:'short' }) +
+    ' · ' + d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
+}
+function initials(name){
+  return (name || '?').split(' ').map(w => w[0]).join('').slice(0,3).toUpperCase();
+}
+function escapeHtml(str){
+  return (str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// =====================================================================
+// ROUTER — hash based single page navigation
+// =====================================================================
+const ROUTES = ['home','league','tournament','champions','admin'];
+const loadedOnce = {};
+
+function setActiveNav(route){
+  document.querySelectorAll('#main-nav a').forEach(a => {
+    a.classList.toggle('active', a.dataset.route === route);
+  });
+}
+
+function showRoute(route){
+  if(!ROUTES.includes(route)) route = 'home';
+  ROUTES.forEach(r => {
+    document.getElementById('page-' + r).style.display = (r === route) ? 'block' : 'none';
+  });
+  setActiveNav(route);
+  window.scrollTo(0, 0);
+
+  if(!loadedOnce[route]){
+    loadedOnce[route] = true;
+    if(route === 'home') loadFeed();
+    if(route === 'league'){ loadFixtures(); loadTable(); }
+    if(route === 'tournament') loadBracket();
+    if(route === 'champions') loadChampions();
+    // admin view initializes itself via onAuthStateChanged below
+  }
+}
+
+function navigate(route){
+  window.location.hash = '/' + route;
+}
+
+window.addEventListener('hashchange', () => {
+  const route = (window.location.hash || '#/home').replace('#/', '') || 'home';
+  showRoute(route);
+});
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-route]');
+  if(el){
+    e.preventDefault();
+    navigate(el.dataset.route);
+  }
+});
+
+// =====================================================================
+// HOME FEED
+// =====================================================================
+const feedEl = document.getElementById('feed');
+
+function fixtureCard(f){
+  const homeWon = f.status === 'ft' && f.homeScore > f.awayScore;
+  const awayWon = f.status === 'ft' && f.awayScore > f.homeScore;
+  const statusLabel = f.status === 'live' ? `Live${f.minute ? ' ' + f.minute + "'" : ''}`
+    : f.status === 'ft' ? 'FT'
+    : '';
+
+  return `
+    <div class="card fixture">
+      <div class="teams">
+        <div class="team-row"><span class="badge">${initials(f.home)}</span><span class="team-name ${homeWon ? 'winner' : ''}">${escapeHtml(f.home)}</span></div>
+        <div class="team-row"><span class="badge alt">${initials(f.away)}</span><span class="team-name ${awayWon ? 'winner' : ''}">${escapeHtml(f.away)}</span></div>
+      </div>
+      <div class="score-col">
+        <span class="score">${f.status === 'scheduled' ? '' : f.homeScore ?? 0}</span>
+        <span class="score">${f.status === 'scheduled' ? '' : f.awayScore ?? 0}</span>
+      </div>
+    </div>
+    <div class="meta-row" style="margin-top:-6px">
+      <span class="status ${f.status === 'live' ? 'live' : ''}">${statusLabel}</span>
+      <span>${escapeHtml(f.competition)}</span>
+    </div>
+  `;
+}
+
+async function loadFeed(){
+  feedEl.innerHTML = '<div class="empty">Loading fixtures…</div>';
+  const [leagueSnap, tourneySnap] = await Promise.all([
+    db.collection('leagueFixtures').orderBy('date', 'desc').limit(10).get(),
+    db.collection('tournamentMatches').orderBy('date', 'desc').limit(10).get()
+  ]);
+  const items = [];
+  leagueSnap.forEach(doc => {
+    const d = doc.data();
+    items.push({ home:d.home, away:d.away, homeScore:d.homeScore, awayScore:d.awayScore, status:d.status, date:d.date, minute:d.minute, competition:'AFK League' });
+  });
+  tourneySnap.forEach(doc => {
+    const d = doc.data();
+    items.push({ home:d.player1, away:d.player2, homeScore:d.score1, awayScore:d.score2, status:d.status, date:d.date, minute:d.minute, competition:`AFK Tournament · ${d.round || ''}` });
+  });
+  if(items.length === 0){
+    feedEl.innerHTML = '<div class="empty">No fixtures yet. Check back once the admins post the schedule.</div>';
+    return;
+  }
+  // Oldest first, most recent last.
+  items.sort((a,b) => {
+    const ta = a.date?.toMillis ? a.date.toMillis() : 0;
+    const tb = b.date?.toMillis ? b.date.toMillis() : 0;
+    return ta - tb;
+  });
+  feedEl.innerHTML = items.slice(-8).map(fixtureCard).join('');
+}
+
+// =====================================================================
+// LEAGUE
+// =====================================================================
+const tableBody = document.getElementById('table-body');
+const fixturesEl = document.getElementById('fixtures');
+
+document.querySelectorAll('#page-league .view-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#page-league .view-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-fixtures').style.display = btn.dataset.view === 'fixtures' ? 'block' : 'none';
+    document.getElementById('view-table').style.display = btn.dataset.view === 'table' ? 'block' : 'none';
+  });
+});
+
+async function loadFixtures(){
+  fixturesEl.innerHTML = '<div class="empty">Loading fixtures…</div>';
+  const snap = await db.collection('leagueFixtures').get();
+  if(snap.empty){ fixturesEl.innerHTML = '<div class="empty">No fixtures posted yet.</div>'; return; }
+  const fixtures = [];
+  snap.forEach(doc => fixtures.push(doc.data()));
+
+  // Sort by matchday number first (MD2 always before MD3, no matter which
+  // was created first), then by date for fixtures within the same matchday.
+  fixtures.sort((a, b) => {
+    const mdA = a.matchday ?? 0, mdB = b.matchday ?? 0;
+    if(mdA !== mdB) return mdA - mdB;
+    const ta = a.date?.toMillis ? a.date.toMillis() : 0;
+    const tb = b.date?.toMillis ? b.date.toMillis() : 0;
+    return ta - tb;
+  });
+
+  fixturesEl.innerHTML = fixtures.map(f => fixtureCard({ ...f, competition: `Matchday ${f.matchday ?? '-'}` })).join('');
+}
+
+async function loadTable(){
+  tableBody.innerHTML = `<tr><td colspan="8" class="empty">Loading table…</td></tr>`;
+  const snap = await db.collection('leagueTeams').get();
+  if(snap.empty){ tableBody.innerHTML = `<tr><td colspan="8" class="empty">No teams added yet.</td></tr>`; return; }
+  const teams = [];
+  snap.forEach(doc => teams.push(doc.data()));
+  teams.sort((a,b) => {
+    if(b.points !== a.points) return b.points - a.points;
+    const gdA = (a.gf||0) - (a.ga||0), gdB = (b.gf||0) - (b.ga||0);
+    if(gdB !== gdA) return gdB - gdA;
+    return (b.gf||0) - (a.gf||0);
+  });
+  tableBody.innerHTML = teams.map((t, i) => {
+    const gd = (t.gf||0) - (t.ga||0);
+    return `
+      <tr>
+        <td><span class="pos">${i+1}</span></td>
+        <td><div class="team-cell"><span class="badge" style="width:22px;height:22px;font-size:10px">${initials(t.name)}</span>${escapeHtml(t.name)}</div></td>
+        <td class="num">${t.played||0}</td>
+        <td class="num">${t.won||0}</td>
+        <td class="num">${t.drawn||0}</td>
+        <td class="num">${t.lost||0}</td>
+        <td class="num">${gd > 0 ? '+' + gd : gd}</td>
+        <td class="num pts">${t.points||0}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// =====================================================================
+// TOURNAMENT
+// =====================================================================
+const bracketEl = document.getElementById('bracket');
+const ROUND_ORDER = ['Quarter-Final', 'Semi-Final', 'Final'];
+
+function matchCard(m){
+  const p1Won = m.status === 'ft' && m.score1 > m.score2;
+  const p2Won = m.status === 'ft' && m.score2 > m.score1;
+  const statusLabel = m.status === 'live' ? 'Live' : m.status === 'ft' ? 'FT' : fmtDate(m.date);
+  return `
+    <div class="card match-card">
+      <div class="team-row"><span class="team-name ${p1Won ? 'winner' : ''}">${escapeHtml(m.player1 || 'TBD')}</span><span class="score">${m.status === 'scheduled' ? '' : m.score1 ?? 0}</span></div>
+      <div class="team-row"><span class="team-name ${p2Won ? 'winner' : ''}">${escapeHtml(m.player2 || 'TBD')}</span><span class="score">${m.status === 'scheduled' ? '' : m.score2 ?? 0}</span></div>
+      <div class="meta-row" style="margin:2px 0 0"><span class="status ${m.status === 'live' ? 'live' : ''}">${statusLabel}</span></div>
+    </div>
+  `;
+}
+
+async function loadBracket(){
+  bracketEl.innerHTML = '<div class="empty">Loading bracket…</div>';
+  const [matchSnap, playerSnap] = await Promise.all([
+    db.collection('tournamentMatches').orderBy('order', 'asc').get(),
+    db.collection('tournamentPlayers').orderBy('seed', 'asc').get()
+  ]);
+  if(matchSnap.empty){
+    const players = [];
+    playerSnap.forEach(doc => players.push(doc.data()));
+    if(players.length){
+      bracketEl.innerHTML = `
+        <div class="card">
+          <div class="round-label">Entrants (${players.length}/8)</div>
+          ${players.map(p => `<div class="team-row" style="margin-bottom:8px"><span class="badge">${initials(p.name)}</span><span class="team-name">${escapeHtml(p.name)}</span></div>`).join('')}
+        </div>`;
+    } else {
+      bracketEl.innerHTML = '<div class="empty">No tournament running yet. Check back once admins set the bracket.</div>';
+    }
+    return;
+  }
+  const byRound = {};
+  matchSnap.forEach(doc => {
+    const d = doc.data();
+    const round = d.round || 'Round';
+    (byRound[round] = byRound[round] || []).push(d);
+  });
+  const orderedRounds = Object.keys(byRound).sort((a,b) => ROUND_ORDER.indexOf(a) - ROUND_ORDER.indexOf(b));
+  bracketEl.innerHTML = orderedRounds.map(round => `
+    <div>
+      <div class="round-label">${escapeHtml(round)}</div>
+      ${byRound[round].map(matchCard).join('')}
+    </div>
+  `).join('');
+}
+
+// =====================================================================
+// CHAMPIONS
+// =====================================================================
+const champListEl = document.getElementById('champions-list');
+
+async function loadChampions(){
+  champListEl.innerHTML = '<div class="empty">Loading roll of champions…</div>';
+  const snap = await db.collection('champions').orderBy('date', 'desc').get();
+  if(snap.empty){ champListEl.innerHTML = '<div class="empty">No champions crowned yet.</div>'; return; }
+  const rows = [];
+  snap.forEach(doc => rows.push(doc.data()));
+  champListEl.innerHTML = `<div class="card" style="padding:4px 16px">${rows.map(c => `
+    <div class="champion-row">
+      <div class="trophy">🏆</div>
+      <div class="champion-info">
+        <div class="champion-season">${escapeHtml(c.season || '')}</div>
+        <div class="champion-name">${escapeHtml(c.winner)}</div>
+        <div class="champion-tag">${escapeHtml(c.competition || '')}</div>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+// =====================================================================
+// ADMIN
+// =====================================================================
+const loginView = document.getElementById('login-view');
+const dashView = document.getElementById('dash-view');
+const deniedView = document.getElementById('denied-view');
+const loginForm = document.getElementById('login-form');
+const loginError = document.getElementById('login-error');
+const whoami = document.getElementById('whoami');
+
+document.getElementById('logout-btn').addEventListener('click', (e) => { e.preventDefault(); auth.signOut(); });
+document.getElementById('logout-btn-2').addEventListener('click', () => auth.signOut());
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginError.textContent = '';
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  try { await auth.signInWithEmailAndPassword(email, password); }
+  catch(err){ loginError.textContent = err.message; }
+});
+
+auth.onAuthStateChanged(user => {
+  [loginView, dashView, deniedView].forEach(v => v.style.display = 'none');
+  if(!user){ loginView.style.display = 'block'; return; }
+  if(!isAdminEmail(user.email)){ deniedView.style.display = 'block'; return; }
+  whoami.textContent = user.email;
+  dashView.style.display = 'block';
+  initDashboard();
+});
+
+const adminTabButtons = document.querySelectorAll('.admin-tab');
+const adminPanels = {
+  teams: document.getElementById('panel-teams'),
+  fixtures: document.getElementById('panel-fixtures'),
+  tournament: document.getElementById('panel-tournament'),
+  champions: document.getElementById('panel-champions')
+};
+adminTabButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    adminTabButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    Object.values(adminPanels).forEach(p => p.style.display = 'none');
+    adminPanels[btn.dataset.tab].style.display = 'block';
+  });
+});
+
+let dashboardInitialized = false;
+function initDashboard(){
+  if(dashboardInitialized) return;
+  dashboardInitialized = true;
+  wireTeams();
+  wireFixturesAdmin();
+  wireTournamentPlayers();
+  wireTournamentMatches();
+  wireChampionsAdmin();
+}
+
+// ---- teams ----
+function wireTeams(){
+  const form = document.getElementById('team-form');
+  const list = document.getElementById('team-list');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('team-name').value.trim();
+    if(!name) return;
+    await db.collection('leagueTeams').add({ name, played:0, won:0, drawn:0, lost:0, gf:0, ga:0, points:0 });
+    form.reset();
+  });
+  db.collection('leagueTeams').orderBy('name').onSnapshot(snap => {
+    if(snap.empty){ list.innerHTML = '<div class="empty">No players in the league yet.</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(doc => {
+      const t = doc.data();
+      const row = document.createElement('div');
+      row.className = 'admin-list-item';
+      row.innerHTML = `<span>${escapeHtml(t.name)}</span><span class="tag">${t.points||0} pts</span><button class="btn danger">Remove</button>`;
+      row.querySelector('button').addEventListener('click', async () => {
+        if(confirm(`Remove ${t.name} from the league?`)) await db.collection('leagueTeams').doc(doc.id).delete();
+      });
+      list.appendChild(row);
+    });
+  });
+}
+
+// ---- fixtures ----
+function wireFixturesAdmin(){
+  const form = document.getElementById('fixture-form');
+  const list = document.getElementById('fixture-list');
+  const homeSel = document.getElementById('fixture-home');
+  const awaySel = document.getElementById('fixture-away');
+
+  db.collection('leagueTeams').orderBy('name').onSnapshot(snap => {
+    const opts = snap.docs.map(d => `<option value="${escapeHtml(d.data().name)}">${escapeHtml(d.data().name)}</option>`).join('');
+    homeSel.innerHTML = opts || '<option value="">Add teams first</option>';
+    awaySel.innerHTML = opts || '<option value="">Add teams first</option>';
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const home = homeSel.value, away = awaySel.value;
+    const matchday = Number(document.getElementById('fixture-matchday').value) || 1;
+    const dateVal = document.getElementById('fixture-date').value;
+    if(!home || !away || home === away){ alert('Pick two different players.'); return; }
+    await db.collection('leagueFixtures').add({
+      home, away, homeScore:0, awayScore:0, status:'scheduled', matchday,
+      date: dateVal ? firebase.firestore.Timestamp.fromDate(new Date(dateVal)) : firebase.firestore.Timestamp.now()
+    });
+    form.reset();
+  });
+
+  db.collection('leagueFixtures').orderBy('date', 'desc').onSnapshot(snap => {
+    if(snap.empty){ list.innerHTML = '<div class="empty">No fixtures yet.</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(doc => list.appendChild(fixtureEditor(doc.id, doc.data())));
+  });
+}
+
+function fixtureEditor(id, f){
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  wrap.innerHTML = `
+    <div class="small">MD${f.matchday ?? '-'} · ${escapeHtml(f.home)} vs ${escapeHtml(f.away)}</div>
+    <div class="form-grid" style="margin-top:10px">
+      <div class="form-row"><label>${escapeHtml(f.home)} score</label><input type="number" min="0" value="${f.homeScore ?? 0}" data-role="home-score"></div>
+      <div class="form-row"><label>${escapeHtml(f.away)} score</label><input type="number" min="0" value="${f.awayScore ?? 0}" data-role="away-score"></div>
+    </div>
+    <div class="form-row">
+      <label>Status</label>
+      <select data-role="status">
+        <option value="scheduled" ${f.status==='scheduled'?'selected':''}>Scheduled</option>
+        <option value="live" ${f.status==='live'?'selected':''}>Live</option>
+        <option value="ft" ${f.status==='ft'?'selected':''}>Full-time</option>
+      </select>
+    </div>
+    <div class="row-actions">
+      <button class="btn" data-role="save">Save</button>
+      <button class="btn danger" data-role="delete">Delete</button>
+    </div>
+  `;
+  wrap.querySelector('[data-role="save"]').addEventListener('click', async () => {
+    const homeScore = Number(wrap.querySelector('[data-role="home-score"]').value) || 0;
+    const awayScore = Number(wrap.querySelector('[data-role="away-score"]').value) || 0;
+    const status = wrap.querySelector('[data-role="status"]').value;
+    const prevStatus = f.status;
+    await db.collection('leagueFixtures').doc(id).update({ homeScore, awayScore, status });
+    if(status === 'ft' && prevStatus !== 'ft'){
+      await applyResultToStandings(f.home, f.away, homeScore, awayScore);
+    }
+  });
+  wrap.querySelector('[data-role="delete"]').addEventListener('click', async () => {
+    if(confirm('Delete this fixture?')) await db.collection('leagueFixtures').doc(id).delete();
+  });
+  return wrap;
+}
+
+async function applyResultToStandings(homeName, awayName, homeScore, awayScore){
+  const snap = await db.collection('leagueTeams').get();
+  const byName = {};
+  snap.forEach(doc => byName[doc.data().name] = doc.id);
+
+  async function bump(name, gf, ga, result){
+    const id = byName[name];
+    if(!id) return;
+    const ref = db.collection('leagueTeams').doc(id);
+    await db.runTransaction(async (tx) => {
+      const cur = (await tx.get(ref)).data() || {};
+      tx.update(ref, {
+        played:(cur.played||0)+1,
+        won:(cur.won||0)+(result==='w'?1:0),
+        drawn:(cur.drawn||0)+(result==='d'?1:0),
+        lost:(cur.lost||0)+(result==='l'?1:0),
+        gf:(cur.gf||0)+gf,
+        ga:(cur.ga||0)+ga,
+        points:(cur.points||0)+(result==='w'?3:result==='d'?1:0)
+      });
+    });
+  }
+  const homeResult = homeScore > awayScore ? 'w' : homeScore < awayScore ? 'l' : 'd';
+  const awayResult = awayScore > homeScore ? 'w' : awayScore < homeScore ? 'l' : 'd';
+  await bump(homeName, homeScore, awayScore, homeResult);
+  await bump(awayName, awayScore, homeScore, awayResult);
+}
+
+// ---- tournament players ----
+function wireTournamentPlayers(){
+  const form = document.getElementById('player-form');
+  const list = document.getElementById('player-list');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('player-name').value.trim();
+    if(!name) return;
+    const count = (await db.collection('tournamentPlayers').get()).size;
+    if(count >= 8){ alert('The tournament is capped at 8 players.'); return; }
+    await db.collection('tournamentPlayers').add({ name, seed: count + 1 });
+    form.reset();
+  });
+  db.collection('tournamentPlayers').orderBy('seed').onSnapshot(snap => {
+    if(snap.empty){ list.innerHTML = '<div class="empty">No entrants yet.</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(doc => {
+      const p = doc.data();
+      const row = document.createElement('div');
+      row.className = 'admin-list-item';
+      row.innerHTML = `<span>#${p.seed} ${escapeHtml(p.name)}</span><button class="btn danger">Remove</button>`;
+      row.querySelector('button').addEventListener('click', async () => {
+        if(confirm(`Remove ${p.name}?`)) await db.collection('tournamentPlayers').doc(doc.id).delete();
+      });
+      list.appendChild(row);
+    });
+  });
+}
+
+// ---- tournament matches ----
+function wireTournamentMatches(){
+  const form = document.getElementById('match-form');
+  const list = document.getElementById('match-list');
+  const p1Sel = document.getElementById('match-p1');
+  const p2Sel = document.getElementById('match-p2');
+
+  db.collection('tournamentPlayers').orderBy('seed').onSnapshot(snap => {
+    const opts = '<option value="">TBD</option>' + snap.docs.map(d => `<option value="${escapeHtml(d.data().name)}">${escapeHtml(d.data().name)}</option>`).join('');
+    p1Sel.innerHTML = opts;
+    p2Sel.innerHTML = opts;
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const round = document.getElementById('match-round').value;
+    const order = Number(document.getElementById('match-order').value) || 0;
+    const player1 = p1Sel.value, player2 = p2Sel.value;
+    await db.collection('tournamentMatches').add({
+      round, order, player1, player2, score1:0, score2:0, status:'scheduled',
+      date: firebase.firestore.Timestamp.now()
+    });
+    form.reset();
+  });
+
+  db.collection('tournamentMatches').orderBy('order').onSnapshot(snap => {
+    if(snap.empty){ list.innerHTML = '<div class="empty">No matches set yet.</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(doc => list.appendChild(matchEditor(doc.id, doc.data())));
+  });
+}
+
+function matchEditor(id, m){
+  const wrap = document.createElement('div');
+  wrap.className = 'card';
+  wrap.innerHTML = `
+    <div class="small">${escapeHtml(m.round)} · ${escapeHtml(m.player1||'TBD')} vs ${escapeHtml(m.player2||'TBD')}</div>
+    <div class="form-grid" style="margin-top:10px">
+      <div class="form-row"><label>${escapeHtml(m.player1||'P1')} score</label><input type="number" min="0" value="${m.score1 ?? 0}" data-role="s1"></div>
+      <div class="form-row"><label>${escapeHtml(m.player2||'P2')} score</label><input type="number" min="0" value="${m.score2 ?? 0}" data-role="s2"></div>
+    </div>
+    <div class="form-row">
+      <label>Status</label>
+      <select data-role="status">
+        <option value="scheduled" ${m.status==='scheduled'?'selected':''}>Scheduled</option>
+        <option value="live" ${m.status==='live'?'selected':''}>Live</option>
+        <option value="ft" ${m.status==='ft'?'selected':''}>Full-time</option>
+      </select>
+    </div>
+    <div class="row-actions">
+      <button class="btn" data-role="save">Save</button>
+      <button class="btn danger" data-role="delete">Delete</button>
+    </div>
+  `;
+  wrap.querySelector('[data-role="save"]').addEventListener('click', async () => {
+    const score1 = Number(wrap.querySelector('[data-role="s1"]').value) || 0;
+    const score2 = Number(wrap.querySelector('[data-role="s2"]').value) || 0;
+    const status = wrap.querySelector('[data-role="status"]').value;
+    await db.collection('tournamentMatches').doc(id).update({ score1, score2, status });
+  });
+  wrap.querySelector('[data-role="delete"]').addEventListener('click', async () => {
+    if(confirm('Delete this match?')) await db.collection('tournamentMatches').doc(id).delete();
+  });
+  return wrap;
+}
+
+// ---- champions admin ----
+function wireChampionsAdmin(){
+  const form = document.getElementById('champion-form');
+  const list = document.getElementById('champion-admin-list');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const season = document.getElementById('champion-season').value.trim();
+    const competition = document.getElementById('champion-competition').value;
+    const winner = document.getElementById('champion-winner').value.trim();
+    if(!winner) return;
+    await db.collection('champions').add({ season, competition, winner, date: firebase.firestore.Timestamp.now() });
+    form.reset();
+  });
+  db.collection('champions').orderBy('date', 'desc').onSnapshot(snap => {
+    if(snap.empty){ list.innerHTML = '<div class="empty">No champions logged yet.</div>'; return; }
+    list.innerHTML = '';
+    snap.forEach(doc => {
+      const c = doc.data();
+      const row = document.createElement('div');
+      row.className = 'admin-list-item';
+      row.innerHTML = `<span>${escapeHtml(c.season)} · ${escapeHtml(c.competition)} — <strong>${escapeHtml(c.winner)}</strong></span><button class="btn danger">Remove</button>`;
+      row.querySelector('button').addEventListener('click', async () => {
+        if(confirm('Remove this entry?')) await db.collection('champions').doc(doc.id).delete();
+      });
+      list.appendChild(row);
+    });
+  });
+}
+
+// =====================================================================
+// BOOT
+// =====================================================================
+showRoute((window.location.hash || '#/home').replace('#/', '') || 'home');
+</script>
+
+<!--
+FIRESTORE SECURITY RULES — paste into Firebase console → Firestore → Rules.
+This is what actually enforces "3 admins only can post"; keep the emails
+in sync with the ADMIN_EMAILS list above.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+        request.auth.token.email in [
+          'admin1@afkleague.com',
+          'admin2@afkleague.com',
+          'admin3@afkleague.com'
+        ];
+    }
+    match /leagueTeams/{doc}       { allow read: if true; allow write: if isAdmin(); }
+    match /leagueFixtures/{doc}    { allow read: if true; allow write: if isAdmin(); }
+    match /tournamentPlayers/{doc} { allow read: if true; allow write: if isAdmin(); }
+    match /tournamentMatches/{doc} { allow read: if true; allow write: if isAdmin(); }
+    match /champions/{doc}         { allow read: if true; allow write: if isAdmin(); }
+  }
+}
+-->
+</body>
+</html>
