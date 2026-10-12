@@ -73,10 +73,17 @@ function wireTeams(){
     e.preventDefault();
     const name = document.getElementById('team-name').value.trim();
     if (!name) return;
-    await db.collection('leagueTeams').add({
-      name, played:0, won:0, drawn:0, lost:0, gf:0, ga:0, points:0
-    });
-    form.reset();
+    try {
+      await db.collection('leagueTeams').add({
+        name, played:0, won:0, drawn:0, lost:0, gf:0, ga:0, points:0
+      });
+      form.reset();
+      // A new team may already have fixtures with its name, so rebuild.
+      await recomputeStandings();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add player: ' + err.message);
+    }
   });
 
   db.collection('leagueTeams').orderBy('name').onSnapshot(snap => {
@@ -113,7 +120,12 @@ function teamRow(id, t){
       if (!newName) { alert('Name cannot be empty.'); return; }
       if (newName !== oldName) {
         editBtn.disabled = true;
-        await renameTeam(id, oldName, newName);
+        try {
+          await renameTeam(id, oldName, newName);
+        } catch (err) {
+          console.error(err);
+          alert('Rename failed: ' + err.message);
+        }
         editBtn.disabled = false;
       }
       displayEl.textContent = newName;
@@ -124,15 +136,20 @@ function teamRow(id, t){
   });
 
   row.querySelector('[data-role="remove"]').addEventListener('click', async () => {
-    if (confirm(`Remove ${t.name} from the league?`)) await db.collection('leagueTeams').doc(id).delete();
+    if (!confirm(`Remove ${t.name} from the league?`)) return;
+    try {
+      await db.collection('leagueTeams').doc(id).delete();
+    } catch (err) {
+      console.error(err);
+      alert('Remove failed: ' + err.message);
+    }
   });
 
   return row;
 }
 
 // Renames a league team everywhere it's referenced: the team doc itself,
-// plus every leagueFixtures doc that has it as home or away, so past and
-// future fixtures keep showing the right name instead of breaking.
+// plus every leagueFixtures doc that has it as home or away.
 async function renameTeam(teamId, oldName, newName){
   await db.collection('leagueTeams').doc(teamId).update({ name: newName });
 
@@ -148,9 +165,39 @@ async function renameTeam(teamId, oldName, newName){
   await batch.commit();
 }
 
-async function teamOptions(){
-  const snap = await db.collection('leagueTeams').orderBy('name').get();
-  return snap.docs.map(d => `<option value="${escapeHtml(d.data().name)}">${escapeHtml(d.data().name)}</option>`).join('');
+// ---------- STANDINGS ----------
+// Rebuilds the whole table from every full-time fixture. Safe to call after
+// any fixture change (save, status change, delete) because it never relies
+// on incrementing previous values.
+async function recomputeStandings(){
+  const [teamsSnap, fixSnap] = await Promise.all([
+    db.collection('leagueTeams').get(),
+    db.collection('leagueFixtures').where('status', '==', 'ft').get()
+  ]);
+  if (teamsSnap.empty) return;
+
+  const stats = {};
+  teamsSnap.forEach(d => {
+    stats[d.data().name] = { played:0, won:0, drawn:0, lost:0, gf:0, ga:0, points:0 };
+  });
+
+  fixSnap.forEach(d => {
+    const f = d.data();
+    const h = stats[f.home], a = stats[f.away];
+    if (!h || !a) return; // name doesn't match any team
+    const hs = Number(f.homeScore) || 0;
+    const as = Number(f.awayScore) || 0;
+    h.played++; a.played++;
+    h.gf += hs; h.ga += as;
+    a.gf += as; a.ga += hs;
+    if (hs > as) { h.won++; h.points += 3; a.lost++; }
+    else if (hs < as) { a.won++; a.points += 3; h.lost++; }
+    else { h.drawn++; a.drawn++; h.points++; a.points++; }
+  });
+
+  const batch = db.batch();
+  teamsSnap.forEach(d => batch.update(d.ref, stats[d.data().name]));
+  await batch.commit();
 }
 
 // ---------- FIXTURES ----------
@@ -172,11 +219,16 @@ function wireFixtures(){
     const matchday = Number(document.getElementById('fixture-matchday').value) || 1;
     const dateVal = document.getElementById('fixture-date').value;
     if (!home || !away || home === away) { alert('Pick two different players.'); return; }
-    await db.collection('leagueFixtures').add({
-      home, away, homeScore:0, awayScore:0, status:'scheduled', matchday,
-      date: dateVal ? firebase.firestore.Timestamp.fromDate(new Date(dateVal)) : firebase.firestore.Timestamp.now()
-    });
-    form.reset();
+    try {
+      await db.collection('leagueFixtures').add({
+        home, away, homeScore:0, awayScore:0, status:'scheduled', matchday,
+        date: dateVal ? firebase.firestore.Timestamp.fromDate(new Date(dateVal)) : firebase.firestore.Timestamp.now()
+      });
+      form.reset();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add fixture: ' + err.message);
+    }
   });
 
   db.collection('leagueFixtures').orderBy('date', 'desc').onSnapshot(snap => {
@@ -209,54 +261,37 @@ function fixtureEditor(id, f){
     </div>
   `;
 
-  wrap.querySelector('[data-role="save"]').addEventListener('click', async () => {
+  const saveBtn = wrap.querySelector('[data-role="save"]');
+  const deleteBtn = wrap.querySelector('[data-role="delete"]');
+
+  saveBtn.addEventListener('click', async () => {
     const homeScore = Number(wrap.querySelector('[data-role="home-score"]').value) || 0;
     const awayScore = Number(wrap.querySelector('[data-role="away-score"]').value) || 0;
     const status = wrap.querySelector('[data-role="status"]').value;
-    const prevStatus = f.status;
 
-    await db.collection('leagueFixtures').doc(id).update({ homeScore, awayScore, status });
+    saveBtn.disabled = true;
+    try {
+      await db.collection('leagueFixtures').doc(id).update({ homeScore, awayScore, status });
+      await recomputeStandings();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update: ' + err.message);
+    }
+    saveBtn.disabled = false;
+  });
 
-    // Recompute standings when a match is freshly marked full-time
-    if (status === 'ft' && prevStatus !== 'ft') {
-      await applyResultToStandings(f.home, f.away, homeScore, awayScore);
+  deleteBtn.addEventListener('click', async () => {
+    if (!confirm('Delete this fixture?')) return;
+    try {
+      await db.collection('leagueFixtures').doc(id).delete();
+      await recomputeStandings();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete: ' + err.message);
     }
   });
 
-  wrap.querySelector('[data-role="delete"]').addEventListener('click', async () => {
-    if (confirm('Delete this fixture?')) await db.collection('leagueFixtures').doc(id).delete();
-  });
-
   return wrap;
-}
-
-async function applyResultToStandings(homeName, awayName, homeScore, awayScore){
-  const snap = await db.collection('leagueTeams').get();
-  const byName = {};
-  snap.forEach(doc => byName[doc.data().name] = doc.id);
-
-  async function bump(name, gf, ga, result){
-    const id = byName[name];
-    if (!id) return;
-    const ref = db.collection('leagueTeams').doc(id);
-    await db.runTransaction(async (tx) => {
-      const cur = (await tx.get(ref)).data() || {};
-      tx.update(ref, {
-        played: (cur.played||0) + 1,
-        won: (cur.won||0) + (result==='w'?1:0),
-        drawn: (cur.drawn||0) + (result==='d'?1:0),
-        lost: (cur.lost||0) + (result==='l'?1:0),
-        gf: (cur.gf||0) + gf,
-        ga: (cur.ga||0) + ga,
-        points: (cur.points||0) + (result==='w'?3:result==='d'?1:0)
-      });
-    });
-  }
-
-  const homeResult = homeScore > awayScore ? 'w' : homeScore < awayScore ? 'l' : 'd';
-  const awayResult = awayScore > homeScore ? 'w' : awayScore < homeScore ? 'l' : 'd';
-  await bump(homeName, homeScore, awayScore, homeResult);
-  await bump(awayName, awayScore, homeScore, awayResult);
 }
 
 // ---------- TOURNAMENT PLAYERS ----------
@@ -324,9 +359,7 @@ function playerRow(id, p){
   return row;
 }
 
-// Renames a tournament entrant everywhere it's referenced: the player doc
-// itself, plus every tournamentMatches doc that has them as player1 or
-// player2, so the bracket keeps showing the right name.
+// Renames a tournament entrant everywhere it's referenced.
 async function renamePlayer(playerId, oldName, newName){
   await db.collection('tournamentPlayers').doc(playerId).update({ name: newName });
 
@@ -439,5 +472,4 @@ function wireChampions(){
       list.appendChild(row);
     });
   });
-        }
-    
+                                                                     }
