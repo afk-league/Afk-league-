@@ -232,6 +232,10 @@ table.standings td.pts{ font-weight:700; color:var(--gold); }
   padding:10px 0; border-top:1px solid var(--line); gap:10px;
 }
 .admin-list-item:first-child{ border-top:none; }
+.admin-list-item input{
+  background:var(--bg-raised); border:1px solid var(--line); color:var(--text);
+  border-radius:var(--radius-sm); padding:8px 10px; font-size:14px;
+}
 .tag{
   font-size:11px; padding:3px 8px; border-radius:999px;
   background:var(--bg-raised); border:1px solid var(--line); color:var(--text-dim);
