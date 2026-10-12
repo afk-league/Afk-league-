@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFK League — Admin</title>
+<link rel="stylesheet" href="assets/style.css">
+<style>
+  .admin-tab-row{ display:flex; gap:8px; overflow-x:auto; margin:20px 0 16px; }
+  .admin-tab{
+    flex:none; padding:9px 14px; border-radius:999px; border:1px solid var(--line);
+    background:var(--bg-card); color:var(--text-dim); font-weight:600; font-size:13px;
+  }
+  .admin-tab.active{ background:var(--gold); color:#1a1400; border-color:var(--gold); }
+  .login-box{ max-width:340px; margin:60px auto 0; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div id="login-view" class="login-box" style="display:none">
+    <div class="hero" style="padding-top:0">
+      <h1>Admin sign in</h1>
+      <p>Restricted to the 3 AFK League admins.</p>
+    </div>
+    <form id="login-form" class="card">
+      <div class="form-row">
+        <label>Email</label>
+        <input id="login-email" type="email" required autocomplete="username">
+      </div>
+      <div class="form-row">
+        <label>Password</label>
+        <input id="login-password" type="password" required autocomplete="current-password">
+      </div>
+      <p id="login-error" class="small" style="color:var(--red)"></p>
+      <button class="btn" type="submit">Sign in</button>
+    </form>
+  </div>
+
+  <div id="denied-view" style="display:none">
+    <div class="hero" style="padding-top:0"><h1>Not an admin account</h1></div>
+    <div class="empty">This account isn't on the AFK League admin list. Sign in with one of the 3 approved admin emails.</div>
+    <div class="row-actions" style="margin-top:14px"><button class="btn secondary" id="logout-btn-2" onclick="auth.signOut()">Sign out</button></div>
+  </div>
+
+  <div id="dash-view" style="display:none">
+    <div class="hero" style="padding-top:0">
+      <h1>Admin dashboard</h1>
+      <p>Signed in as <span id="whoami"></span> · <a href="#" id="logout-btn" style="text-decoration:underline">Sign out</a></p>
+    </div>
+
+    <div class="admin-tab-row">
+      <button class="admin-tab active" data-tab="teams">League players</button>
+      <button class="admin-tab" data-tab="fixtures">League fixtures</button>
+      <button class="admin-tab" data-tab="tournament">Tournament</button>
+      <button class="admin-tab" data-tab="champions">Champions</button>
+    </div>
+
+    <!-- LEAGUE PLAYERS -->
+    <div id="panel-teams">
+      <section class="block">
+        <h2>Add player</h2>
+        <form id="team-form" class="card">
+          <div class="form-row"><label>Player / team name</label><input id="team-name" required placeholder="e.g. Kelvin"></div>
+          <button class="btn" type="submit">Add to league</button>
+        </form>
+      </section>
+      <section class="block">
+        <h2>League players (max 20)</h2>
+        <div id="team-list"></div>
+      </section>
+    </div>
+
+    <!-- LEAGUE FIXTURES -->
+    <div id="panel-fixtures" style="display:none">
+      <section class="block">
+        <h2>Add fixture</h2>
+        <form id="fixture-form" class="card">
+          <div class="form-grid">
+            <div class="form-row"><label>Home</label><select id="fixture-home"></select></div>
+            <div class="form-row"><label>Away</label><select id="fixture-away"></select></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Matchday</label><input id="fixture-matchday" type="number" min="1" value="1"></div>
+            <div class="form-row"><label>Date & time</label><input id="fixture-date" type="datetime-local"></div>
+          </div>
+          <button class="btn" type="submit">Add fixture</button>
+        </form>
+      </section>
+      <section class="block">
+        <h2>Fixtures & results</h2>
+        <div id="fixture-list"></div>
+      </section>
+    </div>
+
+    <!-- TOURNAMENT -->
+    <div id="panel-tournament" style="display:none">
+      <section class="block">
+        <h2>Add entrant</h2>
+        <form id="player-form" class="card">
+          <div class="form-row"><label>Player name</label><input id="player-name" required placeholder="e.g. Zee"></div>
+          <button class="btn" type="submit">Add entrant</button>
+        </form>
+        <div id="player-list" style="margin-top:10px"></div>
+      </section>
+      <section class="block">
+        <h2>Add / update match</h2>
+        <form id="match-form" class="card">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Round</label>
+              <select id="match-round">
+                <option>Quarter-Final</option>
+                <option>Semi-Final</option>
+                <option>Final</option>
+              </select>
+            </div>
+            <div class="form-row"><label>Order (bracket position)</label><input id="match-order" type="number" min="0" value="0"></div>
+          </div>
+          <div class="form-grid">
+            <div class="form-row"><label>Player 1</label><select id="match-p1"></select></div>
+            <div class="form-row"><label>Player 2</label><select id="match-p2"></select></div>
+          </div>
+          <button class="btn" type="submit">Add match</button>
+        </form>
+      </section>
+      <section class="block">
+        <h2>Bracket matches</h2>
+        <div id="match-list"></div>
+      </section>
+    </div>
+
+    <!-- CHAMPIONS -->
+    <div id="panel-champions" style="display:none">
+      <section class="block">
+        <h2>Add champion</h2>
+        <form id="champion-form" class="card">
+          <div class="form-grid">
+            <div class="form-row"><label>Season / date label</label><input id="champion-season" placeholder="e.g. 2026 Season 1" required></div>
+            <div class="form-row">
+              <label>Competition</label>
+              <select id="champion-competition">
+                <option>AFK League</option>
+                <option>AFK Tournament</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row"><label>Winner</label><input id="champion-winner" required placeholder="Player name"></div>
+          <button class="btn" type="submit">Add to roll of champions</button>
+        </form>
+      </section>
+      <section class="block">
+        <h2>Roll of champions</h2>
+        <div id="champion-admin-list"></div>
+      </section>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="assets/firebase.js"></script>
+<script src="assets/nav.js"></script>
+<script src="assets/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFK League</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>AFK League</h1>
+    <p>Live scores, fixtures and results across the AFK efootball scene.</p>
+  </div>
+
+  <div class="quick-links">
+    <a href="league.html"><span class="icon">📋</span><strong>League</strong></a>
+    <a href="tournament.html"><span class="icon">🏆</span><strong>Tournament</strong></a>
+    <a href="champions.html"><span class="icon">👑</span><strong>Champions</strong></a>
+  </div>
+
+  <section class="block">
+    <h2>Matches</h2>
+    <div id="feed"></div>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="assets/firebase.js"></script>
+<script src="assets/nav.js"></script>
+<script src="assets/home.js"></script>
+</body>
+</html>
